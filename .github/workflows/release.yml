@@ -137,9 +137,10 @@ jobs:
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           echo "Downloading Clang..." | tee -a error-log-${{ matrix.device }}.txt
-          mkdir -p clang &&
-          curl -LSs "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_TOOLCHAIN_BRANCH }}-release/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz" |
-          tar xf -C clang
+          curl -LSs -o clang.tar.gz \
+            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_TOOLCHAIN_BRANCH }}-release/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz"
+          mkdir -p clang
+          tar xf clang.tar.gz -C clang
           echo "✓ Clang downloaded and extracted" | tee -a error-log-${{ matrix.device }}.txt
           echo "" >> error-log-${{ matrix.device }}.txt
 
