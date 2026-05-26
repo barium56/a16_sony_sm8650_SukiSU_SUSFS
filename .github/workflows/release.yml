@@ -36,8 +36,10 @@ env:
   AOSP_TOOLCHAIN_BRANCH: android16
   AOSP_CLANG_VERSION: r547379
   KERNEL_LOCALVERSION: spacealtctrl-sukisu
-  ANDROID_VERSION: android13
-  KERNEL_VERSION: 5.15
+  ANDROID_VERSION: android14
+  KERNEL_VERSION: 6.1
+  DEVICES: '["pdx245"]'
+  DEVICE_MODELS: '{"pdx245":"Sony Xperia 1 VI"}'
 
 jobs:
   build:
@@ -47,7 +49,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       matrix:
-        device: [pdx234, pdx237]
+        device: ${{ fromJson(env.DEVICES) }}
       fail-fast: false
     steps:
       - name: Maximize Build Space
@@ -105,7 +107,7 @@ jobs:
       - name: Sync kernel repository
         uses: actions/checkout@v4
         with:
-          repository: lineageos/android_kernel_sony_sm8550
+          repository: lineageos/android_kernel_sony_sm8650
           ref: lineage-23.2
           path: kernel
           fetch-depth: 1
@@ -654,31 +656,42 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download build artifacts for pdx234
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-pdx234-sukisu-${{ github.event.inputs.sukisu_branch == 'Stable(标准)' && 'stable' || 'dev' }}
-          path: artifacts/pdx234
+      - name: Install GitHub CLI
+        run: |
+          type -p gh >/dev/null || {
+            sudo apt update
+            sudo apt install -y gh
+          }
 
-      - name: Download build artifacts for pdx237
-        uses: actions/download-artifact@v4
-        with:
-          name: kernel-pdx237-sukisu-${{ github.event.inputs.sukisu_branch == 'Stable(标准)' && 'stable' || 'dev' }}
-          path: artifacts/pdx237
+      - name: Download build artifacts
+        env:
+          DEVICES: ${{ env.DEVICES }}
+          SUKISU_BRANCH: ${{ github.event.inputs.sukisu_branch }}
+        run: |
+          # Compute suffix
+          if [ "$SUKISU_BRANCH" == "Stable(标准)" ]; then
+            SUFFIX="stable"
+          else
+            SUFFIX="dev"
+          fi
+
+          echo $DEVICES | jq -r '.[]' | while read device; do
+            echo "Downloading artifacts for $device"
+            mkdir -p artifacts/$device
+            gh run download ${{ github.run_id }} \
+              -n "kernel-${device}-sukisu-${SUFFIX}" \
+              -D artifacts/$device
+          done
 
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
 
-          # Copy pdx234 files
-          cp artifacts/pdx234/Image-pdx234 release-assets/Image-pdx234
-          cp artifacts/pdx234/build-info-pdx234.txt release-assets/build-info-pdx234.txt
-          cp artifacts/pdx234/AnyKernel3-pdx234-sukisu-*.zip release-assets/
-
-          # Copy pdx237 files
-          cp artifacts/pdx237/Image-pdx237 release-assets/Image-pdx237
-          cp artifacts/pdx237/build-info-pdx237.txt release-assets/build-info-pdx237.txt
-          cp artifacts/pdx237/AnyKernel3-pdx237-sukisu-*.zip release-assets/
+          echo '${{ env.DEVICES }}' | jq -r '.[]' | while read device; do
+            cp artifacts/$device/Image-$device release-assets/Image-$device
+            cp artifacts/$device/build-info-$device.txt release-assets/build-info-$device.txt
+            cp artifacts/$device/AnyKernel3-$device-sukisu-*.zip release-assets/
+          done
 
           # Auto-fetch latest APK based on branch
           if [ "${{ github.event.inputs.sukisu_branch }}" == "Dev(开发)" ]; then
@@ -708,31 +721,46 @@ jobs:
       - name: Generate release tag and notes
         id: release_info
         run: |
-          TAG="multi-device-${{ github.event.inputs.release_version }}"
+          TAG="pdx245-${{ github.event.inputs.release_version }}"
           echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
 
-          # Extract SUSFS version from build log (pdx234)
+          # Extract SUSFS version from first device build info
+          FIRST_DEVICE=$(echo '${{ env.DEVICES }}' | jq -r '.[0]')
           SUSFS_VERSION="v1.5.12"
-          if [ -f "artifacts/pdx234/build-info-pdx234.txt" ]; then
-            EXTRACTED=$(grep -oP "SUSFS_VERSION: \Kv[0-9]+\.[0-9]+\.[0-9]+" artifacts/pdx234/build-info-pdx234.txt | head -1 || echo "")
+          if [ -f "artifacts/$FIRST_DEVICE/build-info-$FIRST_DEVICE.txt" ]; then
+            EXTRACTED=$(grep -oP "SUSFS_VERSION: \Kv[0-9]+\.[0-9]+\.[0-9]+" artifacts/$FIRST_DEVICE/build-info-$FIRST_DEVICE.txt | head -1 || echo "")
             if [ -n "$EXTRACTED" ]; then
               SUSFS_VERSION="$EXTRACTED"
             fi
           fi
 
-          # Create release name
-          RELEASE_NAME="pdx234 & pdx237 Kernel: SukiSU & SUSFS ${SUSFS_VERSION}"
+          # Build device list string
+          DEVICE_LIST=$(echo '${{ env.DEVICES }}' | jq -r 'join(" & ")')
+          RELEASE_NAME="${DEVICE_LIST} Kernel: SukiSU & SUSFS ${SUSFS_VERSION}"
           echo "RELEASE_NAME<<EOF" >> $GITHUB_ENV
           echo "$RELEASE_NAME" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-          # Create release notes
+          # Generate supported devices section dynamically
+          DEVICE_MODELS='${{ env.DEVICE_MODELS }}'
+          SUPPORTED_DEVICES=""
+          echo '${{ env.DEVICES }}' | jq -r '.[]' | while read device; do
+            MODEL=$(echo $DEVICE_MODELS | jq -r ".[\"$device\"]")
+            SUPPORTED_DEVICES="${SUPPORTED_DEVICES}- **${device}** - ${MODEL}\n"
+          done
+
+          # Generate downloads section dynamically
+          DOWNLOADS=""
+          echo '${{ env.DEVICES }}' | jq -r '.[]' | while read device; do
+            MODEL=$(echo $DEVICE_MODELS | jq -r ".[\"$device\"]")
+            DOWNLOADS="${DOWNLOADS}- **${device} (${MODEL})**: AnyKernel3-${device}-sukisu-*.zip\n"
+          done
+
           cat > release-notes.md << EOF
           This release includes **SukiSU** for Sony Xperia devices on LineageOS 23.2 / crDroid 12.7
 
           ## Supported Devices:
-          - **pdx234** - Sony Xperia 1 V
-          - **pdx237** - Sony Xperia 5 V
+          $(echo -e "$SUPPORTED_DEVICES")
 
           Features:
           -> SukiSU-${{ github.event.inputs.sukisu_branch }} (builtin)
@@ -747,16 +775,15 @@ jobs:
           <details>
           <summary>▸ Notes:</summary>
 
-          - Device specific builds for Sony Xperia with SM8550
-          - Based on LineageOS 23.2 kernel source (Android 13 base)
+          - Device specific builds for Sony Xperia with SM8650
+          - Based on LineageOS 23.2 kernel source (Android 14 base)
           - In the latest version of susfs, flashing AK3 with Kernel Flasher may brick your device, try [Horizon Kernel Flasher](https://github.com/libxzr/HorizonKernelFlasher)
           - Flash the AnyKernel3 zip that matches your device model
 
           </details>
 
           ## Downloads:
-          - **pdx234 (Xperia 1 V)**: AnyKernel3-pdx234-sukisu-*.zip
-          - **pdx237 (Xperia 5 V)**: AnyKernel3-pdx237-sukisu-*.zip
+          $(echo -e "$DOWNLOADS")
 
           Modules:
           -> https://github.com/sidex15/ksu_module_susfs
@@ -771,9 +798,9 @@ jobs:
 
           Build compiled with:
           - **SukiSU Branch**: builtin
-          - **Devices**: Sony Xperia 1 V (pdx234), Sony Xperia 5 V (pdx237)
-          - **Base Kernel**: 5.15
-          - **Android Version**: 16 (LineageOS 23.2 - crDroid 12.7)
+          - **Devices**: ${DEVICE_LIST}
+          - **Base Kernel**: ${{ env.KERNEL_VERSION }}
+          - **Android Version**: 16 (LineageOS 23.2)
           - **Clang Version**: ${{ env.AOSP_CLANG_VERSION }}
           - **Release Version**: ${{ github.event.inputs.release_version }}
           - **Build Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
@@ -781,13 +808,6 @@ jobs:
 
           </details>
           EOF
-
-      - name: Install GitHub CLI
-        run: |
-          type -p gh >/dev/null || {
-            sudo apt update
-            sudo apt install -y gh
-          }
 
       - name: Create GitHub Release
         env:
@@ -806,4 +826,4 @@ jobs:
           echo "Release created successfully!"
           echo "URL: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}"
           echo "Release type: ${{ github.event.inputs.sukisu_branch == 'Dev(开发)' && 'Pre-release' || 'Latest release' }}"
-          echo "Devices included: pdx234 (Xperia 1 V), pdx237 (Xperia 5 V)"
+          echo "Devices included: $(echo '${{ env.DEVICES }}' | jq -r 'join(", ")')"
