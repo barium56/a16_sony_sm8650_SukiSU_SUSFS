@@ -139,7 +139,7 @@ jobs:
           echo "Downloading Clang..." | tee -a error-log-${{ matrix.device }}.txt
           mkdir -p clang &&
           curl -LSs "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_TOOLCHAIN_BRANCH }}-release/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz" |
-          tar xz -C clang
+          tar xf -C clang
           echo "✓ Clang downloaded and extracted" | tee -a error-log-${{ matrix.device }}.txt
           echo "" >> error-log-${{ matrix.device }}.txt
 
