@@ -122,7 +122,7 @@ jobs:
         working-directory: kernel
         run: |
           echo "--- Installing Base Defconfig ---" | tee -a ../error-log-${{ matrix.device }}.txt
-          cp ../build-configs/lineage-23.2-stock.config arch/arm64/configs/${{ matrix.device }}_defconfig
+          cp ../build-configs/${{ matrix.device }}_defconfig arch/arm64/configs/${{ matrix.device }}_defconfig
           echo "✓ Installed stock defconfig ($(wc -l < arch/arm64/configs/${{ matrix.device }}_defconfig) lines)" | tee -a ../error-log-${{ matrix.device }}.txt
           echo "" >> ../error-log-${{ matrix.device }}.txt
 
