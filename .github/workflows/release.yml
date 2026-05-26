@@ -137,12 +137,27 @@ jobs:
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           echo "Downloading Clang..." | tee -a error-log-${{ matrix.device }}.txt
-          curl -LSs -o clang.tar.gz \
-            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_TOOLCHAIN_BRANCH }}-release/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz"
+          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_TOOLCHAIN_BRANCH }}-release/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz"
+          curl -fSL \
+            --connect-timeout 30 \
+            --max-time 600 \
+            --retry 5 \
+            --retry-delay 10 \
+            --retry-max-time 300 \
+            --retry-connrefused \
+            -o clang.tar.gz \
+            "$URL" || { echo "Download failed"; exit 1; }
+      
+          if ! gzip -t clang.tar.gz; then
+            echo "Not a gzip file – checking content:"
+            file clang.tar.gz
+            head -c 300 clang.tar.gz
+            exit 1
+          fi
+      
           mkdir -p clang
-          tar xf clang.tar.gz -C clang
+          tar xzf clang.tar.gz -C clang
           echo "✓ Clang downloaded and extracted" | tee -a error-log-${{ matrix.device }}.txt
-          echo "" >> error-log-${{ matrix.device }}.txt
 
       - name: Cache ccache
         uses: hendrikmuhs/ccache-action@v1.2
