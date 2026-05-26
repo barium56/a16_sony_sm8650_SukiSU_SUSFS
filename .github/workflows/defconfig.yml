@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
     env:
-      DEVICES: pdx234 pdx237
+      DEVICES: pdx245
 
     steps:
       - name: Checkout
@@ -111,7 +111,11 @@ jobs:
           
           # Prepare output directory
           mkdir -p arch/arm64/configs/
-          rm -f arch/arm64/configs/pdx{234,237}_defconfig
+
+          # Remove any old defconfigs for the current devices (no hardcoded names)
+          for DEVICE in $DEVICES; do
+            rm -f "arch/arm64/configs/${DEVICE}_defconfig"
+          done
           
           # Process each device
           for DEVICE in $DEVICES; do
@@ -156,14 +160,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # Overwrite root defconfigs with extracted ones
-          cp arch/arm64/configs/pdx234_defconfig ./pdx234_defconfig
-          cp arch/arm64/configs/pdx237_defconfig ./pdx237_defconfig
+          # Build a commit message that includes all devices (comma‑separated)
+          DEVICE_LIST=$(echo $DEVICES | tr ' ' ', ')
+          COMMIT_MSG="chore(defconfigs): Update latest defconfigs for ${DEVICE_LIST}"
           
-          git add pdx234_defconfig pdx237_defconfig
+          # Copy each extracted defconfig to the repo root and stage it
+          for DEVICE in $DEVICES; do
+            cp "arch/arm64/configs/${DEVICE}_defconfig" "./${DEVICE}_defconfig"
+            git add "${DEVICE}_defconfig"
+          done
           
           if ! git diff --cached --quiet; then
-            git commit -m "chore(defconfigs): Update latest defconfigs for pdx234 pdx237"
+            git commit -m "$COMMIT_MSG"
             git push origin HEAD:main
           else
             echo "No changes to defconfigs, nothing to push"
