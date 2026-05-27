@@ -98,12 +98,12 @@ jobs:
           echo "" >> error-log-${{ matrix.device }}.txt
 
       - name: Checkout build configs
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: build-configs
 
       - name: Sync kernel repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: lineageos/android_kernel_sony_sm8650
           ref: lineage-23.2
@@ -128,7 +128,7 @@ jobs:
 
       - name: Cache Clang
         id: cache-clang
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: clang
           key: clang-${{ env.AOSP_TOOLCHAIN_BRANCH }}-${{ env.AOSP_CLANG_VERSION }}
@@ -221,6 +221,7 @@ jobs:
           # 2. Copy new files
           cp -r ../zzh_patches/zram/lz4/* ./lib/lz4/ 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt
           cp -r ../zzh_patches/zram/include/linux/* ./include/linux/ 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt
+          bash ../zzh_patches/zram/apply_lz4_neon.sh
 
           # 3. Apply Patch
           if [ -f "../zzh_patches/zram/${{ env.KERNEL_VERSION }}/lz4_1.10.0.patch" ]; then
@@ -252,9 +253,9 @@ jobs:
 
           # Both Stable and Dev now use builtin branch
           echo "Using SukiSU builtin branch" | tee -a ../error-log-${{ matrix.device }}.txt
-          BRANCH="-s builtin"
+          BRANCH="-s main"
 
-          if curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash $BRANCH 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt; then
+          if curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash $BRANCH 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt; then
             echo "✓ SukiSU setup completed" | tee -a ../error-log-${{ matrix.device }}.txt
           else
             echo "✗ ERROR: SukiSU setup failed!" | tee -a ../error-log-${{ matrix.device }}.txt
