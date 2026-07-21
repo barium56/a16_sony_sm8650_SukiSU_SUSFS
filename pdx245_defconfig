@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 6.1.173 Kernel Configuration
+# Linux/arm64 6.1.174 Kernel Configuration
 #
 CONFIG_CC_VERSION_TEXT="Android (14054515, +pgo, +bolt, +lto, +mlgo, based on r563880c) clang version 21.0.0 (https://android.googlesource.com/toolchain/llvm-project 5e96669f06077099aa41290cdb4c5e6fa0f59349)"
 CONFIG_GCC_VERSION=0
@@ -836,12 +836,10 @@ CONFIG_MODULE_SIG=y
 # CONFIG_MODULE_SIG_FORCE is not set
 CONFIG_MODULE_SIG_PROTECT=y
 # CONFIG_MODULE_SIG_ALL is not set
-# CONFIG_MODULE_SIG_SHA1 is not set
-# CONFIG_MODULE_SIG_SHA224 is not set
-# CONFIG_MODULE_SIG_SHA256 is not set
+CONFIG_MODULE_SIG_SHA256=y
 # CONFIG_MODULE_SIG_SHA384 is not set
-CONFIG_MODULE_SIG_SHA512=y
-CONFIG_MODULE_SIG_HASH="sha512"
+# CONFIG_MODULE_SIG_SHA512 is not set
+CONFIG_MODULE_SIG_HASH="sha256"
 CONFIG_MODULE_COMPRESS_NONE=y
 # CONFIG_MODULE_COMPRESS_GZIP is not set
 # CONFIG_MODULE_COMPRESS_XZ is not set
@@ -5156,7 +5154,7 @@ CONFIG_HID_MICROSOFT=y
 # CONFIG_HID_MONTEREY is not set
 CONFIG_HID_MULTITOUCH=y
 CONFIG_HID_NINTENDO=y
-# CONFIG_NINTENDO_FF is not set
+CONFIG_NINTENDO_FF=y
 # CONFIG_HID_NTI is not set
 # CONFIG_HID_NTRIG is not set
 # CONFIG_HID_ORTEK is not set
